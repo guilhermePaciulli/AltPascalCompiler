@@ -65,18 +65,20 @@ char string[1000]; // String a ser avaliada pelo analisador
 int i; // índice do token analisado
 
 int scanner(char string[]); // função para retornar o próximo token válido (ou LEXICAL_ERROR caso haja erro)
-int programa(int word, int *index); // estado inicial do analisador sintático recursivo descendente
+int programa(void); // estado inicial do analisador sintático recursivo descendente
 int lookahead;
 
-int analise_sintatica() { return programa(lookahead, 0); }
+int analise_sintatica() {
+    return programa();
+}
     
 int main(int argc, const char * argv[]) {
     int resultado;
     FILE * file;
     char line[128];
     int lineIndex;
-    
-    file = fopen("/Users/ghpaciulli/Documents/seFormarEmQuatroAnos/compiladores/ProjetoEtapa2/ProjetoEtapa2/entrada.txt", "r"); // Endereço do arquivo a ser criado
+
+    file = fopen("/Users/guilhermepaciulli/Documents/stuff/seFormarEmQuatroAnos/AltPascalCompiler/ProjetoEtapa2/entrada.txt", "r"); // Endereço do arquivo a ser criado
     i = -1;
     
     lineIndex = 0;
@@ -86,7 +88,7 @@ int main(int argc, const char * argv[]) {
     }
     printf("%s", string);
     
-//    resultado = analise_sintatica();
+    resultado = analise_sintatica();
     
 //    printf("%d\n", resultado);
     fclose(file);
@@ -570,118 +572,116 @@ char* outputToken(int result, char string[]) {
 }
 
 // MARK: - ANALISADOR SINTÁTICO
-int match(int s, int word, int *index);
+int match(int word);
 // MARK: - SINTAXE
-int bloco(int word, int *index);
+int bloco(void);
 // MARK: - DECLARAÇÕES
-int parte_de_declaracao_variaveis(int word, int *index);
-int declaracao_variaveis(int word, int *index);
-int lista_identificadores(int word, int *index);
-int identificador(int word, int *index);
-int parte_de_declaracao_subrotinas(int word, int *index);
-int declaracao_procedimentos(int word, int *index);
-int parametros_formais(int word, int *index);
-int parametro_formal(int word, int *index);
-int parametro_formal_aux(int word, int *index);
-int tipo(int word, int *index);
+int parte_de_declaracao_variaveis(void);
+int declaracao_variaveis(void);
+int lista_identificadores(void);
+int identificador(void);
+int parte_de_declaracao_subrotinas(void);
+int declaracao_procedimentos(void);
+int parametros_formais(void);
+int parametro_formal(void);
+int parametro_formal_aux(void);
+int tipo(void);
 // MARK: - COMANDS
-int comando_composto(int word, int *index);
+int comando_composto(void);
 
-int match(int s, int word, int *index) {
+int match(int word) {
     lookahead = scanner(string);
-    if (s == word) return 1;
+    if (word == lookahead) return 1;
     return 0;
 }
 
 // MARK :- SINTAXE
 // Utilizou-se E como palavra vazia
 
-int programa(int word, int *index) { // <programa> ::= program <identificador> ; <bloco>.
-    if (lookahead == PROGRAM) {
-        if (match(PROGRAM, word, index) && match(IDENTIFIER, word, index) && match(SEMICOLON, word, index) && bloco(word, index) && match(DOT, word, index)) return 1;
-    }
+int programa() { // <programa> ::= program <identificador> ; <bloco> .
+    if (match(PROGRAM) && match(IDENTIFIER) && match(SEMICOLON) && bloco() && match(DOT)) return 1;
     return 0;
 }
 
-int bloco(int word, int *index) { // <bloco> ::= <parte de declarações de variáveis> <parte de declarações de sub-rotinas> <comando composto>
-    if (parte_de_declaracao_variaveis(word, index) && parte_de_declaracao_subrotinas(word, index) && comando_composto(word, index)) return 1;
+int bloco() { // <bloco> ::= <parte de declarações de variáveis> <parte de declarações de sub-rotinas> <comando composto>
+    if (parte_de_declaracao_variaveis() && parte_de_declaracao_subrotinas() && comando_composto()) return 1;
     return 0;
 }
 
 // MARK :- DECLARAÇÕES
 
-int parte_de_declaracao_variaveis(int word, int *index) { // <parte de declarações de variáveis> ::= var <declaração de variáveis> ; <declaração de variáveis> ; | E
+int parte_de_declaracao_variaveis() { // <parte de declarações de variáveis> ::= var <declaração de variáveis> ; <declaração de variáveis> ; | E
     if (lookahead == VAR) {
-        if (match(VAR, word, index) && declaracao_variaveis(word, index) && match(SEMICOLON, word, index) && parte_de_declaracao_variaveis(word, index)) return 1;
+        if (match(VAR) && declaracao_variaveis() && match(SEMICOLON) && parte_de_declaracao_variaveis()) return 1;
     }
     return 1;
 }
 
-int declaracao_variaveis(int word, int *index) { // <declaração de variáveis> ::= <lista de identificadores> : <tipo>
-    if (lista_identificadores(word, index) && match(COLON, word, index) && tipo(word, index)) return 1;
+int declaracao_variaveis() { // <declaração de variáveis> ::= <lista de identificadores> : <tipo>
+    if (lista_identificadores() && match(COLON) && tipo()) return 1;
     return 0;
 }
 
-int lista_identificadores(int word, int *index) { // <lista de identificadores> ::= <identificador> , <identificador>
+int lista_identificadores() { // <lista de identificadores> ::= IDENTIFIER , <identificador>
     if (lookahead == IDENTIFIER) {
-        if (match(IDENTIFIER, word, index) && identificador(word, index)) return 1;
+        if (match(IDENTIFIER) && identificador()) return 1;
     }
     return 0;
 }
 
-int identificador(int word, int *index) {
+int identificador() { // <identificador> ::= , <lista de identificadores> | E
     if (lookahead == COMMA) {
-        if (match(COMMA, word, index) && lista_identificadores(word, index)) return 1;
+        if (match(COMMA) && lista_identificadores()) return 1;
     }
     return 1;
 }
 
-int parte_de_declaracao_subrotinas(int word, int *index) {
-    if (declaracao_procedimentos(word, index)) return 1;
+int parte_de_declaracao_subrotinas() {
+    if (declaracao_procedimentos()) return 1;
     return 1;
 }
 
-int declaracao_procedimentos(int word, int *index) {
+int declaracao_procedimentos() {
     if (lookahead == PROCEDURE) {
-        if (match(PROCEDURE, word, index) && match(IDENTIFIER, word, index)
-            && parametros_formais(word, index) && match(SEMICOLON, word, index)
-            && bloco(word, index) && match(SEMICOLON, word, index)) return 1;
+        if (match(PROCEDURE) && match(IDENTIFIER)
+            && parametros_formais() && match(SEMICOLON)
+            && bloco() && match(SEMICOLON)) return 1;
     }
     
     return 0;
 }
 
-int parametros_formais(int word, int *index) {
+int parametros_formais() {
     if (lookahead == OPEN_BRACKETS) {
-        if (match(OPEN_BRACKETS, word, index) && parametro_formal(word, index) && parametro_formal_aux(word, index) && match(CLOSE_BRACKTES, word, index)) return 1;
+        if (match(OPEN_BRACKETS) && parametro_formal() && parametro_formal_aux() && match(CLOSE_BRACKTES)) return 1;
     }
     return 0;
 }
 
-int parametro_formal(int word, int *index) {
+int parametro_formal() {
     if (lookahead == VAR) {
-        if (match(VAR, word, index) && match(IDENTIFIER, word, index) && match(COLON, word, index) && tipo(word, index)) return 1;
+        if (match(VAR) && match(IDENTIFIER) && match(COLON) && tipo()) return 1;
     }
     return 0;
 }
 
-int parametro_formal_aux(int word, int *index) {
+int parametro_formal_aux() {
     if (lookahead == COMMA) {
-        if (match(COMMA, word, index) && parametro_formal(word, index) && parametro_formal_aux(word, index)) return 1;
+        if (match(COMMA) && parametro_formal() && parametro_formal_aux()) return 1;
     }
     return 1;
 }
 
-int tipo(int word, int *index) {
+int tipo() { // <tipo> ::= bool | int
     if (lookahead == _INT) {
-        if (match(_INT, word, index)) return 1;
+        if (match(_INT)) return 1;
     } else if (lookahead == BOOL) {
-        if (match(BOOL, word, index)) return 1;
+        if (match(BOOL)) return 1;
     }
     return 0;
 }
 
-int comando_composto(int word, int *index) {
+int comando_composto() {
     return 0;
 }
 
