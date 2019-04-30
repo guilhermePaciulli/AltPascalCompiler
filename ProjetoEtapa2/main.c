@@ -69,6 +69,7 @@ int programa(void); // estado inicial do analisador sintático recursivo descend
 int lookahead;
 
 int analise_sintatica() {
+    lookahead = scanner(string);
     return programa();
 }
     
@@ -77,8 +78,10 @@ int main(int argc, const char * argv[]) {
     FILE * file;
     char line[128];
     int lineIndex;
-
-    file = fopen("/Users/guilhermepaciulli/Documents/stuff/seFormarEmQuatroAnos/AltPascalCompiler/ProjetoEtapa2/entrada.txt", "r"); // Endereço do arquivo a ser criado
+    
+    file = fopen("/Users/ghpaciulli/Documents/seFormarEmQuatroAnos/compiladores/ProjetoEtapa2/ProjetoEtapa2/entrada.txt", "r"); // Endereço do arquivo a ser criado
+    if (file == NULL) { printf("Arquivo não encontrado"); return 0; }
+    
     i = -1;
     
     lineIndex = 0;
@@ -88,9 +91,11 @@ int main(int argc, const char * argv[]) {
     }
     printf("%s", string);
     
+    
+    
     resultado = analise_sintatica();
     
-//    printf("%d\n", resultado);
+    printf("%d\n", resultado);
     fclose(file);
     return 0;
 }
@@ -472,6 +477,7 @@ q87: if (isEndOfToken(string)) return CLOSE_BRACKTES;
 q88: if (isEndOfToken(string)) return OPEN_BRACKETS;
     
 q97: if (1) {
+        if (c == ' ') { return IDENTIFIER; }
         int res2;
         res2 = getNext(string);
         if (res2 == END_OF_TOKEN || (c == ' ' && res2 == END_OF_STRING)) return IDENTIFIER; // Identificador
@@ -588,10 +594,26 @@ int parametro_formal_aux(void);
 int tipo(void);
 // MARK: - COMANDS
 int comando_composto(void);
+int comando_aux(void);
+int comando(void);
+int atribuicao(void);
+int chamada_procedimento(void);
+int lista_parametro_chamada_procedimento(void);
+int lista_parametro_chamada_procedimento_aux(void);
+int parametro_chamada_procedimento(void);
+int parametro_chamada_procedimento_tipo(void);
+int comando_condicional(void);
+int senao(void);
+int comando_repetitivo(void);
+int escreve(void);
+// MARK: - EXPRESSIONS
+int expressao(void);
 
 int match(int word) {
-    lookahead = scanner(string);
-    if (word == lookahead) return 1;
+    if (word == lookahead) {
+        lookahead = scanner(string);
+        return 1;
+    }
     return 0;
 }
 
@@ -599,7 +621,9 @@ int match(int word) {
 // Utilizou-se E como palavra vazia
 
 int programa() { // <programa> ::= program <identificador> ; <bloco> .
-    if (match(PROGRAM) && match(IDENTIFIER) && match(SEMICOLON) && bloco() && match(DOT)) return 1;
+    if (lookahead == PROGRAM) {
+        if (match(PROGRAM) && match(IDENTIFIER) && match(SEMICOLON) && bloco() && match(DOT)) return 1;
+    }
     return 0;
 }
 
@@ -636,36 +660,34 @@ int identificador() { // <identificador> ::= , <lista de identificadores> | E
     return 1;
 }
 
-int parte_de_declaracao_subrotinas() {
+int parte_de_declaracao_subrotinas() { // <declaracao de subrotinas> ::=  <declaracao de procedimentos> | E
     if (declaracao_procedimentos()) return 1;
     return 1;
 }
 
-int declaracao_procedimentos() {
+int declaracao_procedimentos() { // <declaracao de procedimentos> ::= procedure IDENTIFIER <parametros formais> ; <bloco> ;
     if (lookahead == PROCEDURE) {
-        if (match(PROCEDURE) && match(IDENTIFIER)
-            && parametros_formais() && match(SEMICOLON)
-            && bloco() && match(SEMICOLON)) return 1;
+        if (match(PROCEDURE) && match(IDENTIFIER) && parametros_formais() && match(SEMICOLON) && bloco() && match(SEMICOLON)) return 1;
     }
     
     return 0;
 }
 
-int parametros_formais() {
+int parametros_formais() { // <parametros formais> ::= ( <parametro formal> <parametro formal aux> )
     if (lookahead == OPEN_BRACKETS) {
         if (match(OPEN_BRACKETS) && parametro_formal() && parametro_formal_aux() && match(CLOSE_BRACKTES)) return 1;
     }
     return 0;
 }
 
-int parametro_formal() {
+int parametro_formal() { // <parametro formal> ::= var IDENTIFIER , <tipo>
     if (lookahead == VAR) {
         if (match(VAR) && match(IDENTIFIER) && match(COLON) && tipo()) return 1;
     }
     return 0;
 }
 
-int parametro_formal_aux() {
+int parametro_formal_aux() { // <parametro formal aux> ::= , <parametro formal> <parametro formal aux> | E
     if (lookahead == COMMA) {
         if (match(COMMA) && parametro_formal() && parametro_formal_aux()) return 1;
     }
@@ -681,7 +703,105 @@ int tipo() { // <tipo> ::= bool | int
     return 0;
 }
 
-int comando_composto() {
+int comando_composto() { // <comando composto> ::= begin <comando> <comando aux> end | E
+    if (lookahead == BEGIN) {
+        if (match(BEGIN) && comando() && comando_aux() && match(END)) return 1;
+    }
     return 0;
 }
 
+int comando_aux() { // <comando aux> ::= ; <comando> | E
+    if (lookahead == SEMICOLON) {
+        if (match(SEMICOLON) && comando()) return 1;
+    }
+    return 1;
+}
+
+// <comando> ::= <atribuição> | <chamada de procedimento> | <comando composto> | <comando condicional> | <comando repetitivo> | <escreve>
+int comando() {
+    if (atribuicao()) { return 1;
+    } else if (chamada_procedimento()) { return 1;
+    } else if (comando_composto()) { return 1;
+    } else if (comando_condicional()) { return 1;
+    } else if (comando_repetitivo()) { return 1;
+    } else if (escreve()) { return 1; }
+    return 0;
+}
+
+int atribuicao() { // <atribuição> ::= IDENTIFIER := <expressão>
+    if (lookahead == IDENTIFIER) {
+        if (match(IDENTIFIER) && match(RECEIVES) && expressao()) return 1;
+    }
+    return 0;
+}
+
+int chamada_procedimento() { // <chamada procedimento> ::= IDENTIFIER ( <lista parâmetro chamada procedimento> )
+    if (lookahead == IDENTIFIER) {
+        if (match(IDENTIFIER) && match(OPEN_BRACKETS) && lista_parametro_chamada_procedimento() && match(CLOSE_BRACKTES)) return 1;
+    }
+    return 0;
+}
+
+// <lista parametros chamada procedimento> ::= <parametro chamada procedimento> <parametro chamada procedimento aux> | E
+int lista_parametro_chamada_procedimento() {
+    if (parametro_chamada_procedimento() && lista_parametro_chamada_procedimento_aux()) return 1;
+    return 1;
+}
+
+// <lista parametro chamada procedimento aux> ::= ; <parametro chamada procedimento> <lista parametro chamada procedimento aux> | E
+int lista_parametro_chamada_procedimento_aux() {
+    if (lookahead == SEMICOLON) {
+        if (match(SEMICOLON) && parametro_chamada_procedimento() && lista_parametro_chamada_procedimento_aux()) return 1;
+    }
+    return 1;
+}
+
+int parametro_chamada_procedimento() { // <parametro_chamada_procedimento> ::= ( <parametro chamada procedimento tipo> )
+    if (lookahead == OPEN_BRACKETS) {
+        if (match(OPEN_BRACKETS) && parametro_chamada_procedimento_tipo() && match(CLOSE_BRACKTES)) return 1;
+    }
+    return 0;
+}
+
+int parametro_chamada_procedimento_tipo() { // <parametro chamada procedimento tipo> ::= IDENTIFIER | NUMBER | BOOL
+    if (lookahead == IDENTIFIER) {
+        if (match(IDENTIFIER)) return 1;
+    } else if (lookahead == NUMBER) {
+        if (match(NUMBER)) return 1;
+    } else if (lookahead == BOOL) {
+        if (match(BOOL)) return 1;
+    }
+    return 0;
+}
+
+int comando_condicional() { // <comando condicional> ::= if ( <expressão> ) then <comando> <senão>
+    if (lookahead == IF) {
+        if (match(IF) && match(OPEN_BRACKETS) && expressao() && match(CLOSE_BRACKTES) && match(THEN) && comando() && senao()) return 1;
+    }
+    return 0;
+}
+
+int senao() { // <senao> ::= else <comando> | E
+    if (lookahead == ELSE) {
+        if (match(ELSE) && comando()) return 1;
+    }
+    return 1;
+}
+
+int comando_repetitivo() { // <comando repetitivo> ::= while ( <expressão> ) do <comando>
+    if (lookahead == WHILE) {
+        if (match(WHILE) && match(OPEN_BRACKETS) && expressao() && match(CLOSE_BRACKTES) && match(DO) && comando()) return 1;
+    }
+    return 0;
+}
+
+int escreve() { // <escreve> ::= write ( IDENTIFIER )
+    if (lookahead == WRITE) {
+        if (match(WRITE) && match(OPEN_BRACKETS) && match(IDENTIFIER) && match(CLOSE_BRACKTES)) return 1;
+    }
+    return 0;
+}
+
+int expressao() {
+    return 1;
+}
