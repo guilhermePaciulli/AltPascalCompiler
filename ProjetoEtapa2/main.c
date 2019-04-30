@@ -80,6 +80,9 @@ int main(int argc, const char * argv[]) {
     int lineIndex;
     
     file = fopen("/Users/ghpaciulli/Documents/seFormarEmQuatroAnos/compiladores/ProjetoEtapa2/ProjetoEtapa2/entrada.txt", "r"); // Endereço do arquivo a ser criado
+    
+    file = fopen("/Users/guilhermepaciulli/Documents/stuff/seFormarEmQuatroAnos/AltPascalCompiler/ProjetoEtapa2/entrada.txt", "r");
+    
     if (file == NULL) { printf("Arquivo não encontrado"); return 0; }
     
     i = -1;
@@ -89,12 +92,7 @@ int main(int argc, const char * argv[]) {
         line[strcspn(line, "\n")] = 0;
         strcat(string, &line[0]);
     }
-    printf("%s", string);
-    
-    
-    
     resultado = analise_sintatica();
-    
     printf("%d\n", resultado);
     fclose(file);
     return 0;
@@ -143,6 +141,7 @@ int isEndOfToken(char* str) {
 }
 
 int scanner(char string[]) {
+    from = i + 1;
     goto q0;
     
 q0: if (isEndOfFile(string)) return END_OF_STRING;
@@ -610,6 +609,7 @@ int escreve(void);
 int expressao(void);
 int expressao_aux(void);
 int expressao_simples(void);
+int expressao_simples_aux(void);
 int sinal(void);
 int sinal_aux(void);
 int termo(void);
@@ -623,6 +623,7 @@ int fatores(void);
 
 int match(int word) {
     if (word == lookahead) {
+        printf("%s\n", outputToken(word, string));
         lookahead = scanner(string);
         return 1;
     }
@@ -632,9 +633,9 @@ int match(int word) {
 // MARK :- SINTAXE
 // Utilizou-se E como palavra vazia
 
-int programa() { // <programa> ::= program <identificador> ; <bloco> .
+int programa() { // <programa> ::= program <identificador> ; <bloco> . END_OF_STRING
     if (lookahead == PROGRAM) {
-        if (match(PROGRAM) && match(IDENTIFIER) && match(SEMICOLON) && bloco() && match(DOT)) return 1;
+        if (match(PROGRAM) && match(IDENTIFIER) && match(SEMICOLON) && bloco() && match(DOT) && match(END_OF_STRING)) return 1;
     }
     return 0;
 }
@@ -846,6 +847,11 @@ int expressao_simples() { // <expressão simples> ::= <sinal> <termo> <termo au
     return 0;
 }
 
+int expressao_simples_aux() { // <expressão simples aux> ::= <sinal> <termo> <termo aux> | E
+    if (sinal() && termo() && termo_aux()) return 1;
+    return 1;
+}
+
 int sinal() { // <sinal> ::= + | - | E
     if (lookahead == PLUS) {
         if (match(PLUS)) return 1;
@@ -864,8 +870,8 @@ int sinal_aux() { // <sinal aux> ::= + | -
     return 0;
 }
 
-int termo() { // <termo> ::= <fator> <termo>
-    if (fator() && termo()) return 1;
+int termo() { // <termo> ::= <fator> <termo aux>
+    if (fator() && fator_aux()) return 1;
     return 0;
 }
 
@@ -886,7 +892,7 @@ int fator() { // <fator> ::= <variavel> | NUMBER | <bool> | <expressão simples
         if (match(NUMBER)) return 1;
     } else if (booleano()) {
         return 1;
-    } else if (expressao_simples()) {
+    } else if (expressao_simples_aux()) {
         return 1;
     }
     return 0;
