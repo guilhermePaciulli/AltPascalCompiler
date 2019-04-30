@@ -608,6 +608,18 @@ int comando_repetitivo(void);
 int escreve(void);
 // MARK: - EXPRESSIONS
 int expressao(void);
+int expressao_aux(void);
+int expressao_simples(void);
+int sinal(void);
+int sinal_aux(void);
+int termo(void);
+int termo_aux(void);
+int fator(void);
+int fator_aux(void);
+int relacao(void);
+int booleano(void);
+int variavel(void);
+int fatores(void);
 
 int match(int word) {
     if (word == lookahead) {
@@ -802,6 +814,106 @@ int escreve() { // <escreve> ::= write ( IDENTIFIER )
     return 0;
 }
 
-int expressao() {
+int expressao() { // <expressão> ::= <expressão simples>
+    if (expressao_simples() && expressao_aux()) return 1;
+    return 0;
+}
+
+int expressao_aux() { // <expressão aux> ::= <relação> <expressão simples> | E
+    if (relacao() && expressao_simples()) return 1;
     return 1;
 }
+
+int relacao() { // <relação> ::= <> | = | < | <= | >= | >
+    if (lookahead == EQUIVALENT) {
+        if (match(EQUIVALENT)) return 1;
+    } else if (lookahead == EQUALS) {
+        if (match(EQUALS)) return 1;
+    } else if (lookahead == LESS_THAN) {
+        if (match(LESS_THAN)) return 1;
+    } else if (lookahead == LESS_THAN_OR_EQUAL) {
+        if (match(LESS_THAN_OR_EQUAL)) return 1;
+    } else if (lookahead == GREATER_THAN_OR_EQUAL) {
+        if (match(GREATER_THAN_OR_EQUAL)) return 1;
+    } else if (lookahead == GREATER_THAN) {
+        if (match(GREATER_THAN)) return 1;
+    }
+    return 0;
+}
+
+int expressao_simples() { // <expressão simples> ::= <sinal> <termo> <termo aux>
+    if (sinal() && termo() && termo_aux()) return 1;
+    return 0;
+}
+
+int sinal() { // <sinal> ::= + | - | E
+    if (lookahead == PLUS) {
+        if (match(PLUS)) return 1;
+    } else if (lookahead == MINUS) {
+        if (match(MINUS)) return 1;
+    }
+    return 1;
+}
+
+int sinal_aux() { // <sinal aux> ::= + | -
+    if (lookahead == PLUS) {
+        if (match(PLUS)) return 1;
+    } else if (lookahead == MINUS) {
+        if (match(MINUS)) return 1;
+    }
+    return 0;
+}
+
+int termo() { // <termo> ::= <fator> <termo>
+    if (fator() && termo()) return 1;
+    return 0;
+}
+
+int termo_aux() { // <termo aux> ::= <sinal aux> <termo> | E
+    if (sinal_aux() && termo()) return 1;
+    return 1;
+}
+
+int fator_aux() { // <fator aux> ::= <fatores> <fator> | E
+    if (fatores() && fator()) return 1;
+    return 1;
+}
+
+int fator() { // <fator> ::= <variavel> | NUMBER | <bool> | <expressão simples>
+    if (variavel()) {
+        return 1;
+    } else if (lookahead == NUMBER) {
+        if (match(NUMBER)) return 1;
+    } else if (booleano()) {
+        return 1;
+    } else if (expressao_simples()) {
+        return 1;
+    }
+    return 0;
+}
+
+int booleano() { // <booleano> ::= true | false
+    if (lookahead == _TRUE) {
+        if (match(_TRUE)) return 1;
+    } else if (lookahead == _FALSE) {
+        if (match(_FALSE)) return 1;
+    }
+    return 0;
+}
+
+int variavel() { // <variavel> ::= IDENTIFIER
+    if (lookahead == IDENTIFIER) {
+        if (match(IDENTIFIER)) return 1;
+    }
+    return 0;
+}
+
+int fatores() { // <fatores> ::= * | /
+    if (lookahead == TIMES) {
+        if (match(TIMES)) return 1;
+    } else if (lookahead == DIV) {
+        if (match(DIV)) return 1;
+    }
+    return 0;
+}
+
