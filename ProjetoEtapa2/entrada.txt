@@ -2,11 +2,11 @@ program correto ;
 var a , b , c : int ; 
 var d , e , f : bool ; 
 
-procedure proc ( var a1 : int )
-var a , b , c : int ;
+procedure proc ( var a1 : int ) ; 
+var a , b , c : int ; 
 var d , e , f : bool ; 
 begin 
-a := 1 ;
+a := 1 ; 
 if ( a < 1 ) then 
 a := 12 ; 
 end ; 

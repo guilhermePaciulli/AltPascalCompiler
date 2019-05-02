@@ -69,6 +69,7 @@ int scanner(char string[]); // função para retornar o próximo token válido (
 int programa(void); // estado inicial do analisador sintático recursivo descendente
 int lookahead;
 char* outputToken(int result, char string[]); // converte os códigos numéricos em string para saída
+int from; // marca o ponto do último token para ser lido pelo output token
 
 int analise_sintatica() {
     lookahead = scanner(string);
@@ -76,16 +77,15 @@ int analise_sintatica() {
 }
     
 int main(int argc, const char * argv[]) {
-    int resultado;
     FILE * file;
     char line[128];
     int m;
     
-    file = fopen("/Users/ghpaciulli/Documents/seFormarEmQuatroAnos/compiladores/ProjetoEtapa2/ProjetoEtapa2/entrada.txt", "r"); // Endereço do arquivo a ser criado
+//    file = fopen("/Users/ghpaciulli/Documents/seFormarEmQuatroAnos/compiladores/ProjetoEtapa2/ProjetoEtapa2/entrada.txt", "r"); // Endereço do arquivo a ser criado
     
-//    file = fopen("/Users/guilhermepaciulli/Documents/stuff/seFormarEmQuatroAnos/AltPascalCompiler/ProjetoEtapa2/entrada.txt", "r");
+    file = fopen("/Users/guilhermepaciulli/Documents/stuff/seFormarEmQuatroAnos/AltPascalCompiler/ProjetoEtapa2/entrada.txt", "r");
     
-    if (file == NULL) { printf("Arquivo não encontrado"); return 0; }
+    if (file == NULL) { printf("Arquivo não encontrado \n"); return 0; }
     
     i = -1;
     
@@ -93,16 +93,22 @@ int main(int argc, const char * argv[]) {
         //line[strcspn(line, "\n")] = 0;
         strcat(string, &line[0]);
     }
-    resultado = analise_sintatica();
-    if (resultado) {
+    if (analise_sintatica()) {
         printf("Programa sintaticamente correto \n");
     } else {
-        printf("Erro de sintaxe \n");
-        for (m = 0; m < i; m++) {
-            printf("%c", string[m]);
-        }
-        printf("\n");
-        printf("Token %s não esperado \n", outputToken(lookahead, string));
+        if (lookahead == LEXICAL_ERROR) {
+            printf("Erro léxico \nPalavra: \n\"");
+            for (m = from; m < i; m = m + 1) {
+                printf("%c", string[m]);
+            }
+            printf("\"\nÉ inválida\n");
+        } else {
+            printf("Erro de sintaxe \n");
+            for (m = 0; m < i; m++) {
+                printf("%c", string[m]);
+            }
+            printf("\nToken %s não esperado \n", outputToken(lookahead, string));
+        }        
     }
     fclose(file);
     return 0;
@@ -116,7 +122,6 @@ int isLetter(void); // verifica se o caractere atual (variável c) é letra
 int checkFileEnd(char str[]); // avança o índice e verifica se o caractere c indica um fim de string
 int isEndOfFile(char* str); // apenas verifica se a string chegou no seu final
 int isEndOfToken(char* str); // verifica se o caracter é um espaço em branco indicando fim do token
-int from; // marca o ponto do último token para ser lido pelo output token
 
 int getNext(char str[]) {
     i = i + 1;
@@ -601,7 +606,7 @@ int parametros_formais(void);
 int parametro_formal(void);
 int parametro_formal_aux(void);
 int tipo(void);
-// MARK: - COMANDS
+// MARK: - COMANDOS
 int comando_composto(void);
 int comando_aux(void);
 int comando(void);
@@ -615,7 +620,7 @@ int comando_condicional(void);
 int senao(void);
 int comando_repetitivo(void);
 int escreve(void);
-// MARK: - EXPRESSIONS
+// MARK: - EXPRESSÕES
 int expressao(void);
 int expressao_aux(void);
 int expressao_simples(void);
@@ -633,9 +638,8 @@ int fatores(void);
 
 int match(int word) {
     if (lookahead == word) {
-        //printf("%s\n", outputToken(word, string));
         lookahead = scanner(string);
-        if (lookahead == IGNORE) {
+        while (lookahead == IGNORE) {
             lookahead = scanner(string);
         }
         return 1;
@@ -680,7 +684,7 @@ int lista_identificadores() { // <lista de identificadores> ::= IDENTIFIER , <id
 }
 
 int identificador() { // <identificador> ::= , <lista de identificadores> | E
-    if (lookahead == COMMA) {
+    if (lookahead == COMMA || lookahead == IGNORE) {
         if (match(COMMA) && lista_identificadores()) return 1;
     }
     return 1;
@@ -692,7 +696,7 @@ int parte_de_declaracao_subrotinas() { // <declaracao de subrotinas> ::=  <decla
 }
 
 int declaracao_procedimentos() { // <declaracao de procedimentos> ::= procedure IDENTIFIER <parametros formais> ; <bloco> ;
-    if (lookahead == PROCEDURE) {
+    if (lookahead == PROCEDURE || lookahead == IGNORE) {
         if (match(PROCEDURE) && match(IDENTIFIER) && parametros_formais() && match(SEMICOLON) && bloco() && match(SEMICOLON)) return 1;
     }
     
@@ -700,37 +704,37 @@ int declaracao_procedimentos() { // <declaracao de procedimentos> ::= procedure 
 }
 
 int parametros_formais() { // <parametros formais> ::= ( <parametro formal> <parametro formal aux> )
-    if (lookahead == OPEN_BRACKETS) {
+    if (lookahead == OPEN_BRACKETS || lookahead == IGNORE) {
         if (match(OPEN_BRACKETS) && parametro_formal() && parametro_formal_aux() && match(CLOSE_BRACKTES)) return 1;
     }
     return 0;
 }
 
 int parametro_formal() { // <parametro formal> ::= var IDENTIFIER , <tipo>
-    if (lookahead == VAR) {
+    if (lookahead == VAR || lookahead == IGNORE) {
         if (match(VAR) && match(IDENTIFIER) && match(COLON) && tipo()) return 1;
     }
     return 0;
 }
 
 int parametro_formal_aux() { // <parametro formal aux> ::= , <parametro formal> <parametro formal aux> | E
-    if (lookahead == COMMA) {
+    if (lookahead == COMMA || lookahead == IGNORE) {
         if (match(COMMA) && parametro_formal() && parametro_formal_aux()) return 1;
     }
     return 1;
 }
 
 int tipo() { // <tipo> ::= bool | int
-    if (lookahead == _INT) {
+    if (lookahead == _INT || lookahead == IGNORE) {
         if (match(_INT)) return 1;
-    } else if (lookahead == BOOL) {
+    } else if (lookahead == BOOL || lookahead == IGNORE) {
         if (match(BOOL)) return 1;
     }
     return 0;
 }
 
 int comando_composto() { // <comando composto> ::= begin <comando> <comando aux> end | E
-    if (lookahead == BEGIN) {
+    if (lookahead == BEGIN || lookahead == IGNORE) {
         if (match(BEGIN) && comando() && match(SEMICOLON) && comando_aux() && match(END)) return 1;
     }
     return 0;
@@ -753,14 +757,14 @@ int comando() {
 }
 
 int atribuicao() { // <atribuição> ::= IDENTIFIER := <expressão>
-    if (lookahead == IDENTIFIER) {
+    if (lookahead == IDENTIFIER || lookahead == IGNORE) {
         if (match(IDENTIFIER) && match(RECEIVES) && expressao()) return 1;
     }
     return 0;
 }
 
 int chamada_procedimento() { // <chamada procedimento> ::= IDENTIFIER ( <lista parâmetro chamada procedimento> )
-    if (lookahead == IDENTIFIER) {
+    if (lookahead == IDENTIFIER || lookahead == IGNORE) {
         if (match(IDENTIFIER) && match(OPEN_BRACKETS) && lista_parametro_chamada_procedimento() && match(CLOSE_BRACKTES)) return 1;
     }
     return 0;
@@ -774,59 +778,59 @@ int lista_parametro_chamada_procedimento() {
 
 // <lista parametro chamada procedimento aux> ::= ; <parametro chamada procedimento> <lista parametro chamada procedimento aux> | E
 int lista_parametro_chamada_procedimento_aux() {
-    if (lookahead == SEMICOLON) {
+    if (lookahead == SEMICOLON || lookahead == IGNORE) {
         if (match(SEMICOLON) && parametro_chamada_procedimento() && lista_parametro_chamada_procedimento_aux()) return 1;
     }
     return 1;
 }
 
 int parametro_chamada_procedimento() { // <parametro_chamada_procedimento> ::= ( <parametro chamada procedimento tipo> )
-    if (lookahead == OPEN_BRACKETS) {
+    if (lookahead == OPEN_BRACKETS || lookahead == IGNORE) {
         if (match(OPEN_BRACKETS) && parametro_chamada_procedimento_tipo() && match(CLOSE_BRACKTES)) return 1;
     }
     return 0;
 }
 
 int parametro_chamada_procedimento_tipo() { // <parametro chamada procedimento tipo> ::= IDENTIFIER | NUMBER | BOOL
-    if (lookahead == IDENTIFIER) {
+    if (lookahead == IDENTIFIER || lookahead == IGNORE) {
         if (match(IDENTIFIER)) return 1;
-    } else if (lookahead == NUMBER) {
+    } else if (lookahead == NUMBER || lookahead == IGNORE) {
         if (match(NUMBER)) return 1;
-    } else if (lookahead == BOOL) {
+    } else if (lookahead == BOOL || lookahead == IGNORE) {
         if (match(BOOL)) return 1;
     }
     return 0;
 }
 
 int comando_condicional() { // <comando condicional> ::= if ( <expressão> ) then <comando> <senão>
-    if (lookahead == IF) {
+    if (lookahead == IF || lookahead == IGNORE) {
         if (match(IF) && match(OPEN_BRACKETS) && expressao() && match(CLOSE_BRACKTES) && match(THEN) && comando() && senao()) return 1;
     }
     return 0;
 }
 
 int senao() { // <senao> ::= else <comando> | E
-    if (lookahead == ELSE) {
+    if (lookahead == ELSE || lookahead == IGNORE) {
         if (match(ELSE) && comando()) return 1;
     }
     return 1;
 }
 
 int comando_repetitivo() { // <comando repetitivo> ::= while ( <expressão> ) do <comando>
-    if (lookahead == WHILE) {
+    if (lookahead == WHILE || lookahead == IGNORE) {
         if (match(WHILE) && match(OPEN_BRACKETS) && expressao() && match(CLOSE_BRACKTES) && match(DO) && comando()) return 1;
     }
     return 0;
 }
 
 int escreve() { // <escreve> ::= write ( IDENTIFIER )
-    if (lookahead == WRITE) {
+    if (lookahead == WRITE || lookahead == IGNORE) {
         if (match(WRITE) && match(OPEN_BRACKETS) && match(IDENTIFIER) && match(CLOSE_BRACKTES)) return 1;
     }
     return 0;
 }
 
-int expressao() { // <expressão> ::= <expressão simples>
+int expressao() { // <expressão> ::= <expressão simples> <expressao aux>
     if (expressao_simples() && expressao_aux()) return 1;
     return 0;
 }
@@ -837,17 +841,17 @@ int expressao_aux() { // <expressão aux> ::= <relação> <expressão simples
 }
 
 int relacao() { // <relação> ::= <> | = | < | <= | >= | >
-    if (lookahead == EQUIVALENT) {
+    if (lookahead == EQUIVALENT || lookahead == IGNORE) {
         if (match(EQUIVALENT)) return 1;
-    } else if (lookahead == EQUALS) {
+    } else if (lookahead == EQUALS || lookahead == IGNORE) {
         if (match(EQUALS)) return 1;
-    } else if (lookahead == LESS_THAN) {
+    } else if (lookahead == LESS_THAN || lookahead == IGNORE) {
         if (match(LESS_THAN)) return 1;
-    } else if (lookahead == LESS_THAN_OR_EQUAL) {
+    } else if (lookahead == LESS_THAN_OR_EQUAL || lookahead == IGNORE) {
         if (match(LESS_THAN_OR_EQUAL)) return 1;
-    } else if (lookahead == GREATER_THAN_OR_EQUAL) {
+    } else if (lookahead == GREATER_THAN_OR_EQUAL || lookahead == IGNORE) {
         if (match(GREATER_THAN_OR_EQUAL)) return 1;
-    } else if (lookahead == GREATER_THAN) {
+    } else if (lookahead == GREATER_THAN || lookahead == IGNORE) {
         if (match(GREATER_THAN)) return 1;
     }
     return 0;
@@ -864,18 +868,18 @@ int expressao_simples_aux() { // <expressão simples aux> ::= <sinal> <termo> <
 }
 
 int sinal() { // <sinal> ::= + | - | E
-    if (lookahead == PLUS) {
+    if (lookahead == PLUS || lookahead == IGNORE) {
         if (match(PLUS)) return 1;
-    } else if (lookahead == MINUS) {
+    } else if (lookahead == MINUS || lookahead == IGNORE) {
         if (match(MINUS)) return 1;
     }
     return 1;
 }
 
 int sinal_aux() { // <sinal aux> ::= + | -
-    if (lookahead == PLUS) {
+    if (lookahead == PLUS || lookahead == IGNORE) {
         if (match(PLUS)) return 1;
-    } else if (lookahead == MINUS) {
+    } else if (lookahead == MINUS || lookahead == IGNORE) {
         if (match(MINUS)) return 1;
     }
     return 0;
@@ -899,7 +903,7 @@ int fator_aux() { // <fator aux> ::= <fatores> <fator> | E
 int fator() { // <fator> ::= <variavel> | NUMBER | <bool> | <expressão simples>
     if (variavel()) {
         return 1;
-    } else if (lookahead == NUMBER) {
+    } else if (lookahead == NUMBER || lookahead == IGNORE) {
         if (match(NUMBER)) return 1;
     } else if (booleano()) {
         return 1;
@@ -910,25 +914,25 @@ int fator() { // <fator> ::= <variavel> | NUMBER | <bool> | <expressão simples
 }
 
 int booleano() { // <booleano> ::= true | false
-    if (lookahead == _TRUE) {
+    if (lookahead == _TRUE || lookahead == IGNORE) {
         if (match(_TRUE)) return 1;
-    } else if (lookahead == _FALSE) {
+    } else if (lookahead == _FALSE || lookahead == IGNORE) {
         if (match(_FALSE)) return 1;
     }
     return 0;
 }
 
 int variavel() { // <variavel> ::= IDENTIFIER
-    if (lookahead == IDENTIFIER) {
+    if (lookahead == IDENTIFIER || lookahead == IGNORE) {
         if (match(IDENTIFIER)) return 1;
     }
     return 0;
 }
 
 int fatores() { // <fatores> ::= * | /
-    if (lookahead == TIMES) {
+    if (lookahead == TIMES || lookahead == IGNORE) {
         if (match(TIMES)) return 1;
-    } else if (lookahead == DIV) {
+    } else if (lookahead == DIV || lookahead == IGNORE) {
         if (match(DIV)) return 1;
     }
     return 0;
