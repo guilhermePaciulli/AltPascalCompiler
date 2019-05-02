@@ -12,6 +12,7 @@
 #include <ctype.h>
 
 // Valores de controle
+#define IGNORE -2 // tokens ignorados: espaço em branco
 #define END_OF_STRING -1
 #define LEXICAL_ERROR 0
 #define END_OF_TOKEN 1
@@ -67,6 +68,7 @@ int i; // índice do token analisado
 int scanner(char string[]); // função para retornar o próximo token válido (ou LEXICAL_ERROR caso haja erro)
 int programa(void); // estado inicial do analisador sintático recursivo descendente
 int lookahead;
+char* outputToken(int result, char string[]); // converte os códigos numéricos em string para saída
 
 int analise_sintatica() {
     lookahead = scanner(string);
@@ -77,23 +79,31 @@ int main(int argc, const char * argv[]) {
     int resultado;
     FILE * file;
     char line[128];
-    int lineIndex;
+    int m;
     
     file = fopen("/Users/ghpaciulli/Documents/seFormarEmQuatroAnos/compiladores/ProjetoEtapa2/ProjetoEtapa2/entrada.txt", "r"); // Endereço do arquivo a ser criado
     
-    file = fopen("/Users/guilhermepaciulli/Documents/stuff/seFormarEmQuatroAnos/AltPascalCompiler/ProjetoEtapa2/entrada.txt", "r");
+//    file = fopen("/Users/guilhermepaciulli/Documents/stuff/seFormarEmQuatroAnos/AltPascalCompiler/ProjetoEtapa2/entrada.txt", "r");
     
     if (file == NULL) { printf("Arquivo não encontrado"); return 0; }
     
     i = -1;
     
-    lineIndex = 0;
     while(fgets(line, 128, file) != NULL) {
-        line[strcspn(line, "\n")] = 0;
+        //line[strcspn(line, "\n")] = 0;
         strcat(string, &line[0]);
     }
     resultado = analise_sintatica();
-    printf("%d\n", resultado);
+    if (resultado) {
+        printf("Programa sintaticamente correto \n");
+    } else {
+        printf("Erro de sintaxe \n");
+        for (m = 0; m < i; m++) {
+            printf("%c", string[m]);
+        }
+        printf("\n");
+        printf("Token %s não esperado \n", outputToken(lookahead, string));
+    }
     fclose(file);
     return 0;
 }
@@ -107,7 +117,6 @@ int checkFileEnd(char str[]); // avança o índice e verifica se o caractere c i
 int isEndOfFile(char* str); // apenas verifica se a string chegou no seu final
 int isEndOfToken(char* str); // verifica se o caracter é um espaço em branco indicando fim do token
 int from; // marca o ponto do último token para ser lido pelo output token
-char* outputToken(int result, char string[]); // converte os códigos numéricos em string para saída
 
 int getNext(char str[]) {
     i = i + 1;
@@ -173,6 +182,7 @@ q0: if (isEndOfFile(string)) return END_OF_STRING;
     else if (c == '(') goto q88;
     else if (c == '_' || isLetter()) goto q97;
     else if (c == ' ') return END_OF_TOKEN;
+    else if (c == '\n') return IGNORE;
     else goto q100;
     
 q1: if (isEndOfToken(string)) return COMMENT;
@@ -509,7 +519,7 @@ char* outputToken(int result, char string[]) {
     char* strResult = NULL;
     int aux1;
     switch (result) {
-        case END_OF_STRING: break;
+        case END_OF_STRING: strResult = "<END_OF_FILE>"; break;
         case END_OF_TOKEN: break;
         case LEXICAL_ERROR: strResult = "<LEXICAL_LEXICAL_ERROR>"; break;
         case PROGRAM: strResult = "<PROGRAM>"; break;
@@ -622,9 +632,12 @@ int variavel(void);
 int fatores(void);
 
 int match(int word) {
-    if (word == lookahead) {
-        printf("%s\n", outputToken(word, string));
+    if (lookahead == word) {
+        //printf("%s\n", outputToken(word, string));
         lookahead = scanner(string);
+        if (lookahead == IGNORE) {
+            lookahead = scanner(string);
+        }
         return 1;
     }
     return 0;
@@ -718,15 +731,13 @@ int tipo() { // <tipo> ::= bool | int
 
 int comando_composto() { // <comando composto> ::= begin <comando> <comando aux> end | E
     if (lookahead == BEGIN) {
-        if (match(BEGIN) && comando() && comando_aux() && match(END)) return 1;
+        if (match(BEGIN) && comando() && match(SEMICOLON) && comando_aux() && match(END)) return 1;
     }
     return 0;
 }
 
-int comando_aux() { // <comando aux> ::= ; <comando> | E
-    if (lookahead == SEMICOLON) {
-        if (match(SEMICOLON) && comando()) return 1;
-    }
+int comando_aux() { // <comando aux> ::= <comando> ; <comando aux> | E
+    if (comando() && match(SEMICOLON) && comando_aux()) return 1;
     return 1;
 }
 

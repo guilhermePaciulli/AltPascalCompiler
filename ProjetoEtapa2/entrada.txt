@@ -2,11 +2,11 @@ program correto ;
 var a , b , c : int ; 
 var d , e , f : bool ; 
 
-procedure proc ( var a1 : int ) ; 
-var a , b , c : int ; 
+procedure proc ( var a1 : int )
+var a , b , c : int ;
 var d , e , f : bool ; 
 begin 
-a := 1 ; 
+a := 1 ;
 if ( a < 1 ) then 
 a := 12 ; 
 end ; 
@@ -26,10 +26,10 @@ a := 20 ;
 b := 10 * c ; 
 c := a / b 
 end ; 
-while ( a > 1 )  do 
+while ( a > 1 ) do 
 begin 
 if ( b > 10 ) then 
 b := 2 ; 
-a := a - 1 
+a := a - 1 ; 
 end ; 
 end . 
