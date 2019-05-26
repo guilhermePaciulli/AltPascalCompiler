@@ -2,8 +2,10 @@
 //  main.c
 //  ProjetoEtapa2
 //
-//  Created by Guilherme Paciulli on 02/04/19.
-//  Copyright © 2019 Guilherme Paciulli. All rights reserved.
+// Guilherme Horcaio Paciulli - 41606574
+// Matheus Tuma - 31629326
+// Ane Caroline Gomes - 41627571
+// Ygor Lima - 41607589
 //
 
 #include <stdio.h>
@@ -12,7 +14,7 @@
 #include <ctype.h>
 
 // Valores de controle
-#define IGNORE -2 // tokens ignorados: espaço em branco
+#define IGNORE -2 // tokens ignorados: quebra de linha
 #define END_OF_STRING -1
 #define LEXICAL_ERROR 0
 #define END_OF_TOKEN 1
@@ -61,6 +63,72 @@
 //Números
 #define NUMBER 39
 
+typedef struct simbolo {
+    int indice;
+    int categoria;
+    int tipo;
+    int escopo;
+    char *palavra;
+    struct simbolo *prox;
+} Simbolo;
+
+Simbolo *tabela;
+int escopo = 1;
+
+int insereSimbolo(char* pal, int categoria) {
+    Simbolo *aux;
+    Simbolo *s1 = (Simbolo *) malloc(sizeof(Simbolo));
+    int indice;
+        
+    s1->categoria = categoria;
+    s1->palavra = pal;
+    s1->escopo = escopo;
+    s1->prox = NULL;
+    
+    indice = -1;
+    indice = indice + 1;
+    if (tabela == NULL) {
+        tabela = s1;
+    } else {
+        aux = tabela;
+        indice = indice + 1;
+        while (aux->prox != NULL) {
+            aux = aux->prox;
+            indice = indice + 1;
+        }
+        aux->prox = s1;
+    }
+    s1->indice = indice;
+    
+    return indice;
+}
+
+void imprimeTabelaSimbolos() {
+    Simbolo *aux;
+    
+    printf("Tabela de símbolos: \n");
+    aux = tabela;
+    while (aux != NULL) {
+        char* categoria;
+        char* tipo;
+        
+        if (aux->categoria == VAR) {
+            categoria = "VAR";
+        } else {
+            categoria = "PROCEDURE";
+        }
+        
+        if (aux->tipo == _INT) {
+            tipo = "INT";
+        } else {
+            tipo = "BOOL";
+        }
+        
+        printf("Símbolo | %s | categoria %s | tipo %s | escopo %d \n", aux->palavra, categoria, tipo, aux->escopo);
+        aux = aux->prox;
+    }
+}
+
 // MARK :- ENTRADA
 char string[1000]; // String a ser avaliada pelo analisador
 int i; // índice do token analisado
@@ -81,9 +149,7 @@ int main(int argc, const char * argv[]) {
     char line[128];
     int m;
     
-//    file = fopen("/Users/ghpaciulli/Documents/seFormarEmQuatroAnos/compiladores/ProjetoEtapa2/ProjetoEtapa2/entrada.txt", "r"); // Endereço do arquivo a ser criado
-    
-    file = fopen("/Users/guilhermepaciulli/Documents/stuff/seFormarEmQuatroAnos/AltPascalCompiler/ProjetoEtapa2/entrada.txt", "r");
+    file = fopen("/Users/ghpaciulli/Documents/seFormarEmQuatroAnos/compiladores/ProjetoEtapa2/ProjetoEtapa2/entrada.txt", "r"); // Endereço do arquivo a ser criado
     
     if (file == NULL) { printf("Arquivo não encontrado \n"); return 0; }
     
@@ -671,13 +737,20 @@ int parte_de_declaracao_variaveis() { // <parte de declarações de variávei
     return 1;
 }
 
+int identificadores[100];
+int numIds;
 int declaracao_variaveis() { // <declaração de variáveis> ::= <lista de identificadores> : <tipo>
+    numIds = -1;
     if (lista_identificadores() && match(COLON) && tipo()) return 1;
     return 0;
 }
-
 int lista_identificadores() { // <lista de identificadores> ::= IDENTIFIER , <identificador>
     if (lookahead == IDENTIFIER) {
+        char* pal;
+
+        numIds = numIds + 1;        
+        pal = outputToken(IDENTIFIER, string);
+        identificadores[numIds] = insereSimbolo(pal, VAR);
         if (match(IDENTIFIER) && identificador()) return 1;
     }
     return 0;
@@ -712,7 +785,15 @@ int parametros_formais() { // <parametros formais> ::= ( <parametro formal> <par
 
 int parametro_formal() { // <parametro formal> ::= var IDENTIFIER , <tipo>
     if (lookahead == VAR || lookahead == IGNORE) {
-        if (match(VAR) && match(IDENTIFIER) && match(COLON) && tipo()) return 1;
+        char* pal;
+        
+        if (match(VAR)) { 
+            numIds = numIds + 1;        
+            pal = outputToken(IDENTIFIER, string);
+            identificadores[numIds] = insereSimbolo(pal, VAR);
+            
+            if (match(IDENTIFIER) && match(COLON) && tipo()) return 1;
+        }
     }
     return 0;
 }
@@ -724,10 +805,31 @@ int parametro_formal_aux() { // <parametro formal aux> ::= , <parametro formal> 
     return 1;
 }
 
+void defineTipos(int tipo) {
+    int x;
+    Simbolo *aux;
+    
+    for (x = 0; x <= numIds; x = x + 1) {
+        int indice;
+        
+        indice = identificadores[x];
+        aux = tabela;
+        while (aux != NULL) {
+            if (aux->indice == indice) {
+                aux->tipo = tipo;
+                break;
+            }
+            aux = aux->prox;
+        }
+    }
+}
+
 int tipo() { // <tipo> ::= bool | int
     if (lookahead == _INT || lookahead == IGNORE) {
+        defineTipos(_INT);
         if (match(_INT)) return 1;
     } else if (lookahead == BOOL || lookahead == IGNORE) {
+        defineTipos(BOOL);
         if (match(BOOL)) return 1;
     }
     return 0;
@@ -757,9 +859,7 @@ int comando() {
 }
 
 int atribuicao() { // <atribuição> ::= IDENTIFIER := <expressão>
-    if (lookahead == IDENTIFIER || lookahead == IGNORE) {
-        if (match(IDENTIFIER) && match(RECEIVES) && expressao()) return 1;
-    }
+    if (variavel() && match(RECEIVES) && expressao()) return 1;
     return 0;
 }
 
