@@ -68,21 +68,21 @@
 //Números
 #define NUMBER 39
 
-typedef struct simbolo {
-    int indice;
-    int categoria;
-    int tipo;
-    int escopo;
-    char *palavra;
-    struct simbolo *prox;
+typedef struct simbolo { // A tabela de símbolos é uma lista ligada
+    int indice; // com o índice para criar um identificador único para cada símbolo encontrado no código (e achá-lo posteriormente)
+    int categoria; // variável ou procedimento
+    int tipo; // tipo INT ou BOOL para variáveis
+    int escopo; // escopo encontrado
+    char *palavra; // identificador 
+    struct simbolo *prox; // próximo da lista 
 } Simbolo;
 
-Simbolo *tabela;
-int escopo = 1;
-int hasSemanticError = 0;
-int erroSemantico;
+Simbolo *tabela; // tabela de símbolos
+int escopo = 1; // escopo atual
+int hasSemanticError = 0; // flag de erro semântico
+int erroSemantico; // erro semântico encontrado
 
-void imprimeTabelaSimbolos() {
+void imprimeTabelaSimbolos() { // imprime a tabela de símbolos
     Simbolo *aux;
     
     printf("Tabela de símbolos: \n");
@@ -91,13 +91,13 @@ void imprimeTabelaSimbolos() {
         char* categoria;
         char* tipo;
         
-        if (aux->categoria == VAR) {
+        if (aux->categoria == VAR) { // formatações
             categoria = "VAR";
         } else {
             categoria = "PROCEDURE";
         }
         
-        if (aux->tipo == _INT) {
+        if (aux->tipo == _INT) { // formatações
             tipo = "INT";
         } else if (aux->tipo == BOOL) {
             tipo = "BOOL";
@@ -110,13 +110,12 @@ void imprimeTabelaSimbolos() {
     }
 }
 
-
-int existeSimbolo(char* pal, int categoria, int escopo) {
+int existeSimbolo(char* pal, int categoria, int escopo) { // procura o símbolo na tabela de símbolos
     Simbolo *aux;
 
     aux = tabela;
     while (aux != NULL) {
-        if (strcmp(aux->palavra, pal) == 0 && aux->categoria == categoria && aux->escopo == escopo) {
+        if (strcmp(aux->palavra, pal) == 0 && aux->categoria == categoria && aux->escopo == escopo) { // ele deve ter o mesmo nome, categoria e escopo
             return 1;
         }
         aux = aux->prox;
@@ -124,15 +123,15 @@ int existeSimbolo(char* pal, int categoria, int escopo) {
     return 0;
 }
 
-int insereSimbolo(char* pal, int categoria) {
+int insereSimbolo(char* pal, int categoria) { // insere o símbolo na tabela 
     Simbolo *aux;
     Simbolo *s1;
     int indice;
 
-    if (existeSimbolo(pal, categoria, escopo)) {
+    if (existeSimbolo(pal, categoria, escopo)) { // se o símbolo existe na tabela no mesmo escopo
         erroSemantico = SEMANTIC_ERROR_TOKEN_EXISTS;
         hasSemanticError = 1;
-        return SEMANTIC_ERROR;
+        return SEMANTIC_ERROR; // estoura erro de token já existe
     }
 
     s1 = (Simbolo *) malloc(sizeof(Simbolo));
@@ -159,13 +158,13 @@ int insereSimbolo(char* pal, int categoria) {
     return indice;
 }
 
-int obtemTipoSimbolo(char* pal) {
+int obtemTipoSimbolo(char* pal) { // procura na tabela de símbolos uma variável com o nome pal e que esteja no mesmo escopo que o atual
     Simbolo *aux;
     
     aux = tabela;
     while (aux != NULL) {
         if (strcmp(aux->palavra, pal) == 0 && aux->escopo == escopo) {
-            if (aux->categoria != VAR) { 
+            if (aux->categoria != VAR) { // houve declaração de um procedimento como se fosse uma variável
                 erroSemantico = SEMANTIC_ERROR_TYPE;
                 hasSemanticError = 1;
                 return SEMANTIC_ERROR;
@@ -175,7 +174,7 @@ int obtemTipoSimbolo(char* pal) {
         aux = aux->prox;
     }
     
-    if (aux == NULL) {
+    if (aux == NULL) { // variável não foi encontrada no escopo em questão
         erroSemantico = SEMANTIC_ERROR_TOKEN_DOES_NOT_EXIST;
         hasSemanticError = 1;
         return SEMANTIC_ERROR;
@@ -194,16 +193,16 @@ int lookahead;
 char* outputToken(int result, char string[]); // converte os códigos numéricos em string para saída
 int from; // marca o ponto do último token para ser lido pelo output token
 
-int analise_sintatica() {
+int compila() {
     lookahead = scanner(string);
     return programa();
 }
     
 int main(int argc, const char * argv[]) {
-    FILE * file;
-    char line[128];
-    int m;
-    int resultado;
+    FILE * file; // arquivo a ser lido 
+    char line[128]; // variável temporária com as linhas do arquvio
+    int m; // variável auxiliar para imprimir o programa caso haja erro 
+    int resultado; // resultado da compilação
     
     file = fopen("/Users/guilhermepaciulli/Documents/stuff/AltPascalCompiler/ProjetoEtapa2/entrada.txt", "r"); // Endereço do arquivo a ser criado
     
@@ -211,39 +210,38 @@ int main(int argc, const char * argv[]) {
     
     i = -1;
 
-    while(fgets(line, 128, file) != NULL) {
+    while(fgets(line, 128, file) != NULL) { // concatena as linhas do arquivo em uma string só 
         strcat(string, &line[0]);
     }
-    resultado = analise_sintatica();
-    if (resultado == 1) {
+    resultado = compila();
+    if (resultado == 1) { // caso o resultado for 1, não houve erros
         printf("Programa lexicalmente, sintaticamente e semanticamente correto \n");
-    }else if (hasSemanticError) {
+    }else if (hasSemanticError) { // senão se houveram erros semânticos
         printf("Erro semântico \n");
-        for (m = 0; m < i; m++) {
+        for (m = 0; m < i; m++) { // imprimimos o código até o erro ser encontrado
             printf("%c", string[m]);
         }
-        if (erroSemantico == SEMANTIC_ERROR_TOKEN_EXISTS) {
+        if (erroSemantico == SEMANTIC_ERROR_TOKEN_EXISTS) { // verifica o tipo do erro e imprime mensagem conforme
             printf("\nIdentificador já existe no escopo \n");
         } else if (erroSemantico == SEMANTIC_ERROR_TYPE) {
             printf("\nErro de tipo, atribuição é inválida \n");
         } else if (erroSemantico == SEMANTIC_ERROR_TOKEN_DOES_NOT_EXIST) {
             printf("\nUso de um identifcador não declarado  \n");
         }
-    } else if (resultado == 0) {
+    } else if (resultado == 0) { // se o resultado for 0 então houve erro de sintaxe
         printf("Erro de sintaxe \n");
-        for (m = 0; m < i; m++) {
+        for (m = 0; m < i; m++) { // imprimimos o código até o erro ser encontrado
             printf("%c", string[m]);
         }
         printf("\nToken %s não esperado \n", outputToken(lookahead, string));
-
-    } else {
+    } else { // senão o erro foi léxico
         printf("Erro léxico \nPalavra: \n\"");
-        for (m = from; m < i; m = m + 1) {
+        for (m = from; m < i; m = m + 1) { // imprimimos o código até o erro ser encontrado
             printf("%c", string[m]);
         }
         printf("\"\nÉ inválida\n");
     }
-    fclose(file);
+    fclose(file); // fecha o arquivo
     return 0;
 }
 
@@ -637,14 +635,14 @@ q100: if(isEndOfToken(string) || checkFileEnd(string)) return LEXICAL_ERROR;
     return LEXICAL_ERROR;
 }
 
-char* outputToken(int result, char string[]) {
+char* outputToken(int result, char string[]) { // obtem a string literal no código fonte (a.k.a. string) dado um resultado)
     char* strResult = NULL;
     int aux1;
     int j;
 
     switch (result) {
         case END_OF_STRING: strResult = "<END_OF_FILE>"; break;
-        case END_OF_TOKEN: break;
+        case END_OF_TOKEN: strResult = "<END_OF_TOKEN>"; break;
         case LEXICAL_ERROR: strResult = "<LEXICAL_LEXICAL_ERROR>"; break;
         case PROGRAM: strResult = "<PROGRAM>"; break;
         case BEGIN: strResult = "<BEGIN>"; break;
@@ -755,7 +753,7 @@ int fatores(void);
 int match(int word) {
     if (lookahead == word) {
         lookahead = scanner(string);
-        while (lookahead == IGNORE) {
+        while (lookahead == IGNORE) { // ignora as quebras de linha
             lookahead = scanner(string);
         }
         return 1;
@@ -765,10 +763,11 @@ int match(int word) {
 
 // MARK :- SINTAXE
 // Utilizou-se E como palavra vazia
+// O `lookahead == IGNORE` foi utilizado para ignorar as quebras de linha (a.k.a. \n),
 
 int programa() { // <programa> ::= program <identificador> ; <bloco> . END_OF_STRING
     if (lookahead == PROGRAM) {
-        if (match(PROGRAM) && match(IDENTIFIER) && match(SEMICOLON) && bloco() && match(DOT) && match(END_OF_STRING)) return 1;
+        if (match(PROGRAM) && match(IDENTIFIER) && match(SEMICOLON) && bloco() && match(DOT)) return 1;
     }
     return 0;
 }
@@ -787,18 +786,18 @@ int parte_de_declaracao_variaveis() { // <parte de declarações de variávei
     return 1;
 }
 
-int identificadores[100];
-int numIds;
+int identificadores[100]; // define uma lista com os identificadores a serem incluídos na tabela de símbolos
+int numIds; // define a quantidade de identificadores sendo colocados na lista
 int declaracao_variaveis() { // <declaração de variáveis> ::= <lista de identificadores> : <tipo>
-    numIds = -1;
+    numIds = -1; // inicializa como -1 o número de identificadores desta declaração de variáveis
     if (lista_identificadores() && match(COLON) && tipo()) return 1;
     return 0;
 }
 int lista_identificadores() { // <lista de identificadores> ::= IDENTIFIER , <identificador>
     if (lookahead == IDENTIFIER) {
-        numIds = numIds + 1;        
-        identificadores[numIds] = insereSimbolo(outputToken(lookahead, string), VAR);
-        if (identificadores[numIds] == SEMANTIC_ERROR) return 0;
+        numIds = numIds + 1; // avança a quantidade de variáveis obtidas      
+        identificadores[numIds] = insereSimbolo(outputToken(lookahead, string), VAR); // obtem a string literal da variável e insere-o na tabela de símbolos
+        if (identificadores[numIds] == SEMANTIC_ERROR) return 0; // se houver erro, voltar falso
         if (match(IDENTIFIER) && identificador()) return 1;
     }
     return 0;
@@ -816,7 +815,7 @@ int parte_de_declaracao_subrotinas() { // <declaracao de subrotinas> ::=  <decla
     return 1;
 }
 
-void limpaSimbolos() {
+void limpaSimbolos() { // limpa o escopo atual
     Simbolo* aux;
     Simbolo* anterior;
 
@@ -837,12 +836,12 @@ int declaracao_procedimentos() { // <declaracao de procedimentos> ::= procedure 
     if (lookahead == PROCEDURE || lookahead == IGNORE) {
         
         if (match(PROCEDURE)) {
-            int error;
-            error = insereSimbolo(outputToken(lookahead, string), PROCEDURE);
-            if (error == SEMANTIC_ERROR) return 0;
-            escopo = escopo + 1;
+            int indice;
+            indice = insereSimbolo(outputToken(lookahead, string), PROCEDURE); // insere identificador do procedure na tabela de símbolos
+            if (indice == SEMANTIC_ERROR) return 0;
+            escopo = escopo + 1; // cria escopo novo
             if (match(IDENTIFIER) && parametros_formais() && match(SEMICOLON) && bloco() && match(SEMICOLON)) {
-                limpaSimbolos();
+                limpaSimbolos(); // limpa escopo atual 
                 return 1;
             }            
         }
@@ -854,7 +853,7 @@ int declaracao_procedimentos() { // <declaracao de procedimentos> ::= procedure 
 
 int parametros_formais() { // <parametros formais> ::= ( <parametro formal> <parametro formal aux> )
     if (lookahead == OPEN_BRACKETS || lookahead == IGNORE) {
-        numIds = -1;
+        numIds = -1; // inicializa como -1 o número de identificadores para estes parâmetros formais
         if (match(OPEN_BRACKETS) && parametro_formal() && parametro_formal_aux() && match(CLOSE_BRACKTES)) return 1;
     }
     return 0;
@@ -863,10 +862,9 @@ int parametros_formais() { // <parametros formais> ::= ( <parametro formal> <par
 int parametro_formal() { // <parametro formal> ::= var IDENTIFIER , <tipo>
     if (lookahead == VAR || lookahead == IGNORE) {        
         if (match(VAR)) { 
-            numIds = numIds + 1;        
-            identificadores[numIds] = insereSimbolo(outputToken(lookahead, string), VAR);
-            if (identificadores[numIds] == SEMANTIC_ERROR) return 0;
-
+            numIds = numIds + 1; // avança a quantidade de variáveis obtidas
+            identificadores[numIds] = insereSimbolo(outputToken(lookahead, string), VAR); // obtem a string literal da variável e insere-o na tabela de símbolos
+            if (identificadores[numIds] == SEMANTIC_ERROR) return 0; // se houver erro, voltar falso
             if (match(IDENTIFIER) && match(COLON) && tipo()) return 1;
         }
     }
@@ -880,7 +878,7 @@ int parametro_formal_aux() { // <parametro formal aux> ::= , <parametro formal> 
     return 1;
 }
 
-void defineTipos(int tipo) {
+void defineTipos(int tipo) { // itera sobre os identficadores obtidos no array identificadores e insere-os na lista de símbolos com o tipo em questão
     int x;
     Simbolo *aux;
     
@@ -901,10 +899,10 @@ void defineTipos(int tipo) {
 
 int tipo() { // <tipo> ::= bool | int
     if (lookahead == _INT || lookahead == IGNORE) {
-        defineTipos(_INT);
+        defineTipos(_INT); // define os tipos obtidos na lista como INTEIROS
         if (match(_INT)) return 1;
     } else if (lookahead == BOOL || lookahead == IGNORE) {
-        defineTipos(BOOL);
+        defineTipos(BOOL); // define os tipos obtidos na lista como BOOLEANOS
         if (match(BOOL)) return 1;
     }
     return 0;
@@ -912,7 +910,7 @@ int tipo() { // <tipo> ::= bool | int
 
 int comando_composto() { // <comando composto> ::= begin <comando> <comando aux> end | E
     if (lookahead == BEGIN || lookahead == IGNORE) {
-        if (match(BEGIN) && comando() && match(SEMICOLON) && comando_aux() && match(END)) return 1;
+        if (match(BEGIN) && comando() && match(SEMICOLON) && comando_aux() && match(END)) return 1; 
     }
     return 0;
 }
@@ -933,7 +931,7 @@ int comando() {
     return 0;
 }
 
-int tipoVariavel = 0;
+int tipoVariavel = 0; // Define o tipo da variável que está sendo atribuiída nesta função
 int atribuicao() { // <atribuição> ::= IDENTIFIER := <expressão>
     tipoVariavel = 0;
     if (variavel() && match(RECEIVES) && expressao(tipoVariavel)) return 1;
@@ -1037,12 +1035,12 @@ int relacao() { // <relação> ::= <> | = | < | <= | >= | >
 
 int expressao_simples(int tipo) { // <expressão simples> ::= <sinal> <termo> <termo aux>
     if (sinal() && termo(tipo) && termo_aux(tipo)) return 1;
-    return 1;
+    return 0;
 }
 
 int expressao_simples_aux(int tipo) { // <expressão simples aux> ::= <sinal> <termo> <termo aux> | E
     if (sinal_aux() && termo(tipo) && termo_aux(tipo)) return 1;
-    return 0;
+    return 1;
 }
 
 int sinal() { // <sinal> ::= + | - | E
@@ -1112,23 +1110,23 @@ int booleano() { // <booleano> ::= true | false
 
 int variavel() { // <variavel> ::= IDENTIFIER
     if (lookahead == IDENTIFIER || lookahead == IGNORE) {
-        if (tipoVariavel != 0) {
+        if (tipoVariavel != 0) { // caso o tipo já tiver sido definido, então estamos avaliando outra variável
             int tipo;
             char* pal;
             
-            pal = outputToken(IDENTIFIER, string);
-            tipo = obtemTipoSimbolo(pal);
+            pal = outputToken(IDENTIFIER, string); // obtemos o string literal da variavel 
+            tipo = obtemTipoSimbolo(pal); // buscamos na tabela de símbolos
             
-            if (tipo == SEMANTIC_ERROR) return 0;
+            if (tipo == SEMANTIC_ERROR) return 0; // caso houver erro, voltar falso
             
-            if (tipo != tipoVariavel) {
+            if (tipo != tipoVariavel) { // caso o tipo for diferente da variável sendo atribuída
                 hasSemanticError = 1;
-                erroSemantico = SEMANTIC_ERROR_TYPE;
-                return 0;
+                erroSemantico = SEMANTIC_ERROR_TYPE; // houve um erro de tipo
+                return 0; // retornamos falso
             }
-        } else {
-            tipoVariavel = obtemTipoSimbolo(outputToken(IDENTIFIER, string));
-            if (tipoVariavel == SEMANTIC_ERROR) return 0;
+        } else { // caso não tiver sido definido
+            tipoVariavel = obtemTipoSimbolo(outputToken(IDENTIFIER, string)); // obtemos o tipo da variável sendo atribuída
+            if (tipoVariavel == SEMANTIC_ERROR) return 0; // caso houver erro, voltar falso
         }
         if (match(IDENTIFIER)) return 1;
     }
