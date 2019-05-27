@@ -1,18 +1,8 @@
 program correto ; 
-var a , b , c : int ; 
-var d , e , f : bool ; 
-
-procedure proc ( var a1 : int ) ; 
-var a , b , c : int ; 
-var d , e , f : bool ; 
-begin 
-a := 1 ; 
-if ( a < 1 ) then 
-a := 12 ; 
-end ;
+var a : int ; 
 
 begin 
-a := 2 ; 
+a := x ; 
 b := 10 ; 
 c := 11 ; 
 a := b + c ; 

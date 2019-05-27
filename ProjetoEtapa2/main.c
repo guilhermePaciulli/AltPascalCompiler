@@ -14,7 +14,12 @@
 #include <ctype.h>
 
 // Valores de controle
-#define IGNORE -2 // tokens ignorados: quebra de linha
+#define IGNORE -100 // tokens ignorados: quebra de linha
+#define SEMANTIC_ERROR_TYPE -6
+#define SEMANTIC_ERROR_TOKEN_DOES_NOT_EXIST -5
+#define SEMANTIC_ERROR_TOKEN_EXISTS -4
+#define SEMANTIC_ERROR -3
+#define SYNTAX_ERROR -2
 #define END_OF_STRING -1
 #define LEXICAL_ERROR 0
 #define END_OF_TOKEN 1
@@ -74,12 +79,63 @@ typedef struct simbolo {
 
 Simbolo *tabela;
 int escopo = 1;
+int hasSemanticError = 0;
+int erroSemantico;
+
+void imprimeTabelaSimbolos() {
+    Simbolo *aux;
+    
+    printf("Tabela de símbolos: \n");
+    aux = tabela;
+    while (aux != NULL) {
+        char* categoria;
+        char* tipo;
+        
+        if (aux->categoria == VAR) {
+            categoria = "VAR";
+        } else {
+            categoria = "PROCEDURE";
+        }
+        
+        if (aux->tipo == _INT) {
+            tipo = "INT";
+        } else if (aux->tipo == BOOL) {
+            tipo = "BOOL";
+        } else {
+            tipo = "-";
+        }
+        
+        printf("Símbolo | %s | categoria %s | tipo %s | escopo %d \n", aux->palavra, categoria, tipo, aux->escopo);
+        aux = aux->prox;
+    }
+}
+
+
+int existeSimbolo(char* pal, int categoria, int escopo) {
+    Simbolo *aux;
+
+    aux = tabela;
+    while (aux != NULL) {
+        if (strcmp(aux->palavra, pal) == 0 && aux->categoria == categoria && aux->escopo == escopo) {
+            return 1;
+        }
+        aux = aux->prox;
+    }
+    return 0;
+}
 
 int insereSimbolo(char* pal, int categoria) {
     Simbolo *aux;
-    Simbolo *s1 = (Simbolo *) malloc(sizeof(Simbolo));
+    Simbolo *s1;
     int indice;
-        
+
+    if (existeSimbolo(pal, categoria, escopo)) {
+        erroSemantico = SEMANTIC_ERROR_TOKEN_EXISTS;
+        hasSemanticError = 1;
+        return SEMANTIC_ERROR;
+    }
+
+    s1 = (Simbolo *) malloc(sizeof(Simbolo));
     s1->categoria = categoria;
     s1->palavra = pal;
     s1->escopo = escopo;
@@ -103,30 +159,28 @@ int insereSimbolo(char* pal, int categoria) {
     return indice;
 }
 
-void imprimeTabelaSimbolos() {
+int obtemTipoSimbolo(char* pal) {
     Simbolo *aux;
     
-    printf("Tabela de símbolos: \n");
     aux = tabela;
     while (aux != NULL) {
-        char* categoria;
-        char* tipo;
-        
-        if (aux->categoria == VAR) {
-            categoria = "VAR";
-        } else {
-            categoria = "PROCEDURE";
+        if (strcmp(aux->palavra, pal) == 0 && aux->escopo == escopo) {
+            if (aux->categoria != VAR) { 
+                erroSemantico = SEMANTIC_ERROR_TYPE;
+                hasSemanticError = 1;
+                return SEMANTIC_ERROR;
+            }
+            return aux->tipo;
         }
-        
-        if (aux->tipo == _INT) {
-            tipo = "INT";
-        } else {
-            tipo = "BOOL";
-        }
-        
-        printf("Símbolo | %s | categoria %s | tipo %s | escopo %d \n", aux->palavra, categoria, tipo, aux->escopo);
         aux = aux->prox;
     }
+    
+    if (aux == NULL) {
+        erroSemantico = SEMANTIC_ERROR_TOKEN_DOES_NOT_EXIST;
+        return SEMANTIC_ERROR;
+    }
+    
+    return 0;
 }
 
 // MARK :- ENTRADA
@@ -148,33 +202,45 @@ int main(int argc, const char * argv[]) {
     FILE * file;
     char line[128];
     int m;
+    int resultado;
     
     file = fopen("/Users/ghpaciulli/Documents/seFormarEmQuatroAnos/compiladores/ProjetoEtapa2/ProjetoEtapa2/entrada.txt", "r"); // Endereço do arquivo a ser criado
     
     if (file == NULL) { printf("Arquivo não encontrado \n"); return 0; }
     
     i = -1;
-    
+
     while(fgets(line, 128, file) != NULL) {
-        //line[strcspn(line, "\n")] = 0;
         strcat(string, &line[0]);
     }
-    if (analise_sintatica()) {
-        printf("Programa sintaticamente correto \n");
+    resultado = analise_sintatica();
+    if (resultado == 1) {
+        printf("Programa lexicalmente, sintaticamente e semanticamente correto \n");
+    }else if (hasSemanticError) {
+        printf("Erro semântico \n");
+        for (m = 0; m < i; m++) {
+            printf("%c", string[m]);
+        }
+        if (erroSemantico == SEMANTIC_ERROR_TOKEN_EXISTS) {
+            printf("\nIdentificador já existe no escopo \n");
+        } else if (erroSemantico == SEMANTIC_ERROR_TYPE) {
+            printf("\nErro de tipo, atribuição é inválida \n");
+        } else if (erroSemantico == SEMANTIC_ERROR_TOKEN_DOES_NOT_EXIST) {
+            printf("\nUso de um identifcador não declarado  \n");
+        }
+    } else if (resultado == 0) {
+        printf("Erro de sintaxe \n");
+        for (m = 0; m < i; m++) {
+            printf("%c", string[m]);
+        }
+        printf("\nToken %s não esperado \n", outputToken(lookahead, string));
+
     } else {
-        if (lookahead == LEXICAL_ERROR) {
-            printf("Erro léxico \nPalavra: \n\"");
-            for (m = from; m < i; m = m + 1) {
-                printf("%c", string[m]);
-            }
-            printf("\"\nÉ inválida\n");
-        } else {
-            printf("Erro de sintaxe \n");
-            for (m = 0; m < i; m++) {
-                printf("%c", string[m]);
-            }
-            printf("\nToken %s não esperado \n", outputToken(lookahead, string));
-        }        
+        printf("Erro léxico \nPalavra: \n\"");
+        for (m = from; m < i; m = m + 1) {
+            printf("%c", string[m]);
+        }
+        printf("\"\nÉ inválida\n");
     }
     fclose(file);
     return 0;
@@ -570,25 +636,11 @@ q100: if(isEndOfToken(string) || checkFileEnd(string)) return LEXICAL_ERROR;
     return LEXICAL_ERROR;
 }
 
-char* getIdentifier(int from, char string[], char tokenName[]) {
-    char* strResult = malloc(i - from + strlen(tokenName) - 1);
-    int j;
-    int aux1;
-    
-    strcpy(strResult, "<ID, ");
-    j = 5;
-    for (aux1 = from; aux1 < i; aux1 = aux1 + 1) {
-        strResult[j] = string[aux1];
-        j = j + 1;
-    }
-    strResult[j] = '>';
-    
-    return strResult;
-}
-
 char* outputToken(int result, char string[]) {
     char* strResult = NULL;
     int aux1;
+    int j;
+
     switch (result) {
         case END_OF_STRING: strResult = "<END_OF_FILE>"; break;
         case END_OF_TOKEN: break;
@@ -612,15 +664,12 @@ char* outputToken(int result, char string[]) {
         case _FALSE: strResult = "<FALSE>"; break;
         case WRITE: strResult = "<WRITE>"; break;
         case IDENTIFIER:
-            strResult = malloc(i - from + 4);
-            strcpy(strResult, "<ID, ");
-            int j;
-            j = 5;
+            j = 0;
+            strResult = malloc(i - from - 1);
             for (aux1 = from; aux1 < i; aux1 = aux1 + 1) {
                 strResult[j] = string[aux1];
                 j = j + 1;
             }
-            strResult[j] = '>';
             break;
         case PLUS: strResult = "<PLUS>"; break;
         case MINUS: strResult = "<MINUS>"; break;
@@ -687,16 +736,16 @@ int senao(void);
 int comando_repetitivo(void);
 int escreve(void);
 // MARK: - EXPRESSÕES
-int expressao(void);
-int expressao_aux(void);
-int expressao_simples(void);
-int expressao_simples_aux(void);
+int expressao(int tipo);
+int expressao_aux(int tipo);
+int expressao_simples(int tipo);
+int expressao_simples_aux(int tipo);
 int sinal(void);
 int sinal_aux(void);
-int termo(void);
-int termo_aux(void);
-int fator(void);
-int fator_aux(void);
+int termo(int tipo);
+int termo_aux(int tipo);
+int fator(int tipo);
+int fator_aux(int tipo);
 int relacao(void);
 int booleano(void);
 int variavel(void);
@@ -746,11 +795,9 @@ int declaracao_variaveis() { // <declaração de variáveis> ::= <lista de id
 }
 int lista_identificadores() { // <lista de identificadores> ::= IDENTIFIER , <identificador>
     if (lookahead == IDENTIFIER) {
-        char* pal;
-
         numIds = numIds + 1;        
-        pal = outputToken(IDENTIFIER, string);
-        identificadores[numIds] = insereSimbolo(pal, VAR);
+        identificadores[numIds] = insereSimbolo(outputToken(lookahead, string), VAR);
+        if (identificadores[numIds] == SEMANTIC_ERROR) return 0;
         if (match(IDENTIFIER) && identificador()) return 1;
     }
     return 0;
@@ -768,9 +815,37 @@ int parte_de_declaracao_subrotinas() { // <declaracao de subrotinas> ::=  <decla
     return 1;
 }
 
+void limpaSimbolos() {
+    Simbolo* aux;
+    Simbolo* anterior;
+
+    anterior = NULL;
+    aux = tabela;
+    while (aux != NULL) {
+        if (aux->escopo == escopo) {
+            anterior->prox = aux->prox;
+            aux = anterior;
+        }
+        anterior = aux;
+        aux = aux->prox;
+    }
+    escopo = escopo - 1;
+}
+
 int declaracao_procedimentos() { // <declaracao de procedimentos> ::= procedure IDENTIFIER <parametros formais> ; <bloco> ;
     if (lookahead == PROCEDURE || lookahead == IGNORE) {
-        if (match(PROCEDURE) && match(IDENTIFIER) && parametros_formais() && match(SEMICOLON) && bloco() && match(SEMICOLON)) return 1;
+        
+        if (match(PROCEDURE)) {
+            int error;
+            error = insereSimbolo(outputToken(lookahead, string), PROCEDURE);
+            if (error == SEMANTIC_ERROR) return 0;
+            escopo = escopo + 1;
+            if (match(IDENTIFIER) && parametros_formais() && match(SEMICOLON) && bloco() && match(SEMICOLON)) {
+                limpaSimbolos();
+                return 1;
+            }            
+        }
+        
     }
     
     return 0;
@@ -778,20 +853,19 @@ int declaracao_procedimentos() { // <declaracao de procedimentos> ::= procedure 
 
 int parametros_formais() { // <parametros formais> ::= ( <parametro formal> <parametro formal aux> )
     if (lookahead == OPEN_BRACKETS || lookahead == IGNORE) {
+        numIds = -1;
         if (match(OPEN_BRACKETS) && parametro_formal() && parametro_formal_aux() && match(CLOSE_BRACKTES)) return 1;
     }
     return 0;
 }
 
 int parametro_formal() { // <parametro formal> ::= var IDENTIFIER , <tipo>
-    if (lookahead == VAR || lookahead == IGNORE) {
-        char* pal;
-        
+    if (lookahead == VAR || lookahead == IGNORE) {        
         if (match(VAR)) { 
             numIds = numIds + 1;        
-            pal = outputToken(IDENTIFIER, string);
-            identificadores[numIds] = insereSimbolo(pal, VAR);
-            
+            identificadores[numIds] = insereSimbolo(outputToken(lookahead, string), VAR);
+            if (identificadores[numIds] == SEMANTIC_ERROR) return 0;
+
             if (match(IDENTIFIER) && match(COLON) && tipo()) return 1;
         }
     }
@@ -858,8 +932,10 @@ int comando() {
     return 0;
 }
 
+int tipoVariavel = 0;
 int atribuicao() { // <atribuição> ::= IDENTIFIER := <expressão>
-    if (variavel() && match(RECEIVES) && expressao()) return 1;
+    tipoVariavel = 0;
+    if (variavel() && match(RECEIVES) && expressao(tipoVariavel)) return 1;
     return 0;
 }
 
@@ -904,7 +980,7 @@ int parametro_chamada_procedimento_tipo() { // <parametro chamada procedimento t
 
 int comando_condicional() { // <comando condicional> ::= if ( <expressão> ) then <comando> <senão>
     if (lookahead == IF || lookahead == IGNORE) {
-        if (match(IF) && match(OPEN_BRACKETS) && expressao() && match(CLOSE_BRACKTES) && match(THEN) && comando() && senao()) return 1;
+        if (match(IF) && match(OPEN_BRACKETS) && expressao(0) && match(CLOSE_BRACKTES) && match(THEN) && comando() && senao()) return 1;
     }
     return 0;
 }
@@ -918,25 +994,26 @@ int senao() { // <senao> ::= else <comando> | E
 
 int comando_repetitivo() { // <comando repetitivo> ::= while ( <expressão> ) do <comando>
     if (lookahead == WHILE || lookahead == IGNORE) {
-        if (match(WHILE) && match(OPEN_BRACKETS) && expressao() && match(CLOSE_BRACKTES) && match(DO) && comando()) return 1;
+        if (match(WHILE) && match(OPEN_BRACKETS) && expressao(0) && match(CLOSE_BRACKTES) && match(DO) && comando()) return 1;
     }
     return 0;
 }
 
 int escreve() { // <escreve> ::= write ( IDENTIFIER )
     if (lookahead == WRITE || lookahead == IGNORE) {
+        imprimeTabelaSimbolos();
         if (match(WRITE) && match(OPEN_BRACKETS) && match(IDENTIFIER) && match(CLOSE_BRACKTES)) return 1;
     }
     return 0;
 }
 
-int expressao() { // <expressão> ::= <expressão simples> <expressao aux>
-    if (expressao_simples() && expressao_aux()) return 1;
+int expressao(int tipo) { // <expressão> ::= <expressão simples> <expressao aux>
+    if (expressao_simples(tipo) && expressao_aux(tipo)) return 1;
     return 0;
 }
 
-int expressao_aux() { // <expressão aux> ::= <relação> <expressão simples> | E
-    if (relacao() && expressao_simples()) return 1;
+int expressao_aux(int tipo) { // <expressão aux> ::= <relação> <expressão simples> | E
+    if (relacao() && expressao_simples(tipo)) return 1;
     return 1;
 }
 
@@ -957,14 +1034,14 @@ int relacao() { // <relação> ::= <> | = | < | <= | >= | >
     return 0;
 }
 
-int expressao_simples() { // <expressão simples> ::= <sinal> <termo> <termo aux>
-    if (sinal() && termo() && termo_aux()) return 1;
-    return 0;
+int expressao_simples(int tipo) { // <expressão simples> ::= <sinal> <termo> <termo aux> | E
+    if (sinal() && termo(tipo) && termo_aux(tipo)) return 1;
+    return 1;
 }
 
-int expressao_simples_aux() { // <expressão simples aux> ::= <sinal> <termo> <termo aux> | E
-    if (sinal() && termo() && termo_aux()) return 1;
-    return 1;
+int expressao_simples_aux(int tipo) { // <expressão simples aux> ::= <sinal> <termo> <termo aux>
+    if (sinal() && termo(tipo) && termo_aux(tipo)) return 1;
+    return 0;
 }
 
 int sinal() { // <sinal> ::= + | - | E
@@ -985,29 +1062,39 @@ int sinal_aux() { // <sinal aux> ::= + | -
     return 0;
 }
 
-int termo() { // <termo> ::= <fator> <termo aux>
-    if (fator() && fator_aux()) return 1;
+int termo(int tipo) { // <termo> ::= <fator> <termo aux>
+    if (fator(tipo) && fator_aux(tipo)) return 1;
     return 0;
 }
 
-int termo_aux() { // <termo aux> ::= <sinal aux> <termo> | E
-    if (sinal_aux() && termo()) return 1;
+int termo_aux(int tipo) { // <termo aux> ::= <sinal aux> <termo> | E
+    if (sinal_aux() && termo(tipo)) return 1;
     return 1;
 }
 
-int fator_aux() { // <fator aux> ::= <fatores> <fator> | E
-    if (fatores() && fator()) return 1;
+int fator_aux(int tipo) { // <fator aux> ::= <fatores> <fator> | E
+    if (fatores() && fator(tipo)) return 1;
     return 1;
 }
 
-int fator() { // <fator> ::= <variavel> | NUMBER | <bool> | <expressão simples>
+int fator(int tipo) { // <fator> ::= <variavel> | NUMBER | <bool> | <expressão simples>
     if (variavel()) {
         return 1;
     } else if (lookahead == NUMBER || lookahead == IGNORE) {
+        if (tipo != _INT && tipo != 0) {
+            hasSemanticError = 1;
+            erroSemantico = SEMANTIC_ERROR_TYPE;
+            return 0;
+        }
         if (match(NUMBER)) return 1;
     } else if (booleano()) {
+        if (tipo != BOOL && tipo != 0) {
+            hasSemanticError = 1;
+            erroSemantico = SEMANTIC_ERROR_TYPE;
+            return 0;
+        }
         return 1;
-    } else if (expressao_simples_aux()) {
+    } else if (expressao_simples_aux(tipo)) {
         return 1;
     }
     return 0;
@@ -1024,6 +1111,24 @@ int booleano() { // <booleano> ::= true | false
 
 int variavel() { // <variavel> ::= IDENTIFIER
     if (lookahead == IDENTIFIER || lookahead == IGNORE) {
+        if (tipoVariavel != 0) {
+            int tipo;
+            char* pal;
+            
+            pal = outputToken(IDENTIFIER, string);
+            tipo = obtemTipoSimbolo(pal);
+            
+            if (tipo == SEMANTIC_ERROR) return 0;
+            
+            if (tipo != tipoVariavel) {
+                hasSemanticError = 1;
+                erroSemantico = SEMANTIC_ERROR_TYPE;
+                return 0;
+            }
+        } else {
+            tipoVariavel = obtemTipoSimbolo(outputToken(IDENTIFIER, string));
+            if (tipoVariavel == SEMANTIC_ERROR) return 0;
+        }
         if (match(IDENTIFIER)) return 1;
     }
     return 0;
