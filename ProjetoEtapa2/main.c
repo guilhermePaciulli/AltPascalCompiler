@@ -177,6 +177,7 @@ int obtemTipoSimbolo(char* pal) {
     
     if (aux == NULL) {
         erroSemantico = SEMANTIC_ERROR_TOKEN_DOES_NOT_EXIST;
+        hasSemanticError = 1;
         return SEMANTIC_ERROR;
     }
     
@@ -204,7 +205,7 @@ int main(int argc, const char * argv[]) {
     int m;
     int resultado;
     
-    file = fopen("/Users/ghpaciulli/Documents/seFormarEmQuatroAnos/compiladores/ProjetoEtapa2/ProjetoEtapa2/entrada.txt", "r"); // Endereço do arquivo a ser criado
+    file = fopen("/Users/guilhermepaciulli/Documents/stuff/AltPascalCompiler/ProjetoEtapa2/entrada.txt", "r"); // Endereço do arquivo a ser criado
     
     if (file == NULL) { printf("Arquivo não encontrado \n"); return 0; }
     
@@ -1034,13 +1035,13 @@ int relacao() { // <relação> ::= <> | = | < | <= | >= | >
     return 0;
 }
 
-int expressao_simples(int tipo) { // <expressão simples> ::= <sinal> <termo> <termo aux> | E
+int expressao_simples(int tipo) { // <expressão simples> ::= <sinal> <termo> <termo aux>
     if (sinal() && termo(tipo) && termo_aux(tipo)) return 1;
     return 1;
 }
 
-int expressao_simples_aux(int tipo) { // <expressão simples aux> ::= <sinal> <termo> <termo aux>
-    if (sinal() && termo(tipo) && termo_aux(tipo)) return 1;
+int expressao_simples_aux(int tipo) { // <expressão simples aux> ::= <sinal> <termo> <termo aux> | E
+    if (sinal_aux() && termo(tipo) && termo_aux(tipo)) return 1;
     return 0;
 }
 
